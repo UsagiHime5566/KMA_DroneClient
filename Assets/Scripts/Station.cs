@@ -6,6 +6,7 @@ using OscJack;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 
 public class Station : MonoBehaviour
 {
@@ -15,22 +16,28 @@ public class Station : MonoBehaviour
     [Header("Tello 常數")]
     public string telloHostIP = "192.168.10.1";
     public int telloHostPort = 8889;
+    public string RecieveTelloIP = "0.0.0.0";
+    public int RecieveHostPort = 8890;
 
     [Header("GUI Log")]
     public Text GUILog;
+    public Text RecieveLog;
     public int maxMessageLine = 20;
 
     [Header("Tello Params")]
     public int TelloStep = 20;
 
     UdpClient telloClient;
+    UdpClient udpServer;
     OscServer oscServer;
     Queue<string> LogString = new Queue<string>();
+    Queue<string> RecieveLogString = new Queue<string>();
 
 
     void Start()
     {
         UDPConnect();
+        TelloServerStart();
     }
 
     public void OscServerStart(){
@@ -46,15 +53,45 @@ public class Station : MonoBehaviour
         );
     }
 
+    public void TelloServerStart(){
+        udpServer = new UdpClient(RecieveHostPort);
+
+        // 使用執行緒開始接收資料
+        Thread receiveThread = new Thread(ServerLoopReceiveData);
+        receiveThread.Start();
+    }
+
+    void ServerLoopReceiveData()
+    {
+        try
+        {
+            while (true)
+            {
+                IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
+
+                byte[] receivedData = udpServer.Receive(ref clientEndPoint);
+                string receivedMessage = Encoding.UTF8.GetString(receivedData);
+
+                MaxLogMsg(RecieveLogString, $"接收到來自 {clientEndPoint.Address}:{clientEndPoint.Port} 的訊息: {receivedMessage}");
+                RecieveLog.text = GetLogStrings(RecieveLogString);
+            }
+        }
+        catch (SocketException ex)
+        {
+            // 在執行緒中捕獲例外狀況
+            MaxLogMsg(RecieveLogString, $"錯誤: {ex.Message}");
+        }
+    }
+
     private void TelloCommand(string mess)
     {
-        MaxLogMsg($"TelloSend: {mess}");
-        GUILog.text = GetLogStrings();
+        MaxLogMsg(LogString, $"TelloSend: {mess}");
+        GUILog.text = GetLogStrings(LogString);
 
         //UDPConnect();
         if(!IsUdpConnected()){
             UDPConnect();
-            MaxLogMsg("UDP 重新連接");
+            MaxLogMsg(LogString, "UDP 重新連接");
         }
         
         try {
@@ -86,17 +123,17 @@ public class Station : MonoBehaviour
         }
     }
 
-    void MaxLogMsg(string msg){
-        LogString.Enqueue(msg);
-        if(LogString.Count > maxMessageLine)
-            LogString.Dequeue();
+    void MaxLogMsg(Queue<string> str, string msg){
+        str.Enqueue(msg);
+        if(str.Count > maxMessageLine)
+            str.Dequeue();
 
         Debug.Log(msg);
     }
 
-    string GetLogStrings(){
+    string GetLogStrings(Queue<string> str){
         string s = "";
-        foreach (var item in LogString)
+        foreach (var item in str)
         {
             s = item + "\n" + s;
         }
@@ -155,6 +192,10 @@ public class Station : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.X))
         {
             TelloCommand(TelloCommands.stop);
+        }
+        if (Input.GetKeyDown(KeyCode.Home))
+        {
+            TelloCommand("sdk?");
         }
     }
 }
