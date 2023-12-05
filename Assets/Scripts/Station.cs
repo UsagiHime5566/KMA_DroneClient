@@ -10,55 +10,55 @@ using System.Threading;
 
 public class Station : MonoBehaviour
 {
-    [Header("OSC 變數")]
-    public int oscServerPort = 25501;
-
     [Header("Tello 常數")]
     public string telloHostIP = "192.168.10.1";
     public int telloHostPort = 8889;
     public string RecieveTelloIP = "0.0.0.0";
     public int RecieveHostPort = 8890;
 
+    [Header("Arduino 常數")]
+    public ArduinoInteractive arduino;
+
     [Header("GUI Log")]
     public Text GUILog;
     public Text RecieveLog;
     public int maxMessageLine = 20;
 
+    [Header("Systems")]
+    public OSCAdapter oscAdapter;
+
     [Header("Tello Params")]
     public int TelloStep = 20;
 
     UdpClient telloClient;
+    Thread telloReceiveThread;
     UdpClient udpServer;
-    OscServer oscServer;
     Queue<string> LogString = new Queue<string>();
     Queue<string> RecieveLogString = new Queue<string>();
 
-
     void Start()
     {
+        //飛行器連接
         UDPConnect();
+
+        //飛行器接收端
         TelloServerStart();
+
+        //OSC接收端
+        CommandsScribe();
     }
 
-    public void OscServerStart(){
-        oscServer = new OscServer(oscServerPort);
-
-        oscServer.MessageDispatcher.AddCallback(
-            "/test", // OSC address
-            (string address, OscDataHandle data) => {
-                Debug.Log(string.Format("({0}, {1})",
-                    data.GetElementAsFloat(0),
-                    data.GetElementAsFloat(1)));
-            }
-        );
-    }
+    void CommandsScribe(){
+        oscAdapter.OnTelloCommand += TelloCommand;
+        oscAdapter.OnArduinoCommand += ArduinoSend;
+    } 
 
     public void TelloServerStart(){
         udpServer = new UdpClient(RecieveHostPort);
 
         // 使用執行緒開始接收資料
-        Thread receiveThread = new Thread(ServerLoopReceiveData);
-        receiveThread.Start();
+        telloReceiveThread = new Thread(ServerLoopReceiveData);
+        telloReceiveThread.Start();
     }
 
     void ServerLoopReceiveData()
@@ -83,6 +83,10 @@ public class Station : MonoBehaviour
         }
     }
 
+    private void OnDestroy() {
+        telloReceiveThread.Abort();
+    }
+
     private void TelloCommand(string mess)
     {
         MaxLogMsg(LogString, $"TelloSend: {mess}");
@@ -101,6 +105,12 @@ public class Station : MonoBehaviour
         catch (System.Exception e) {
             Debug.Log("Tello Send error: " + e);
         }
+    }
+
+    private void ArduinoSend(string msg){
+        MaxLogMsg(LogString, $"ArduinoSend: {msg}");
+        GUILog.text = GetLogStrings(LogString);
+        arduino.SendData(msg);
     }
 
     void UDPConnect(){
@@ -207,15 +217,28 @@ public class TelloCommands
     public static string land = "land";
     public static string command = "command";
     public static string stop = "stop";
-    public static string rc = "rc";
+    public static string rc = "rc";             //with 4 param
     public static string up = "up";             //with 1 param
     public static string down = "down";         //with 1 param
     public static string forward = "forward";  //with 1 param
     public static string back = "back";        //with 1 param
     public static string left = "left";        //with 1 param
     public static string right = "right";      //with 1 param
-    public static string cw = "cw";      //with 1 param
-    public static string ccw = "ccw";      //with 1 param
+    public static string cw = "cw";             //with 1 param
+    public static string ccw = "ccw";           //with 1 param
     public static string speed = "speed";      //with 1 param
-    
+    public static string[] noParamCommand = new string[] { takeoff, land, command, stop };
+    public static string[] withParamCommand = new string[] { rc, up, down, forward, back, left, right, cw, ccw };
+}
+
+public class ArduinoCommands
+{
+    public static string on1 = "1on";
+    public static string on2 = "2on";
+    public static string off1 = "1off";
+    public static string off2 = "2off";
+    public static string con = "con";
+    public static string coff = "coff";
+    public static string close = "close";
+    public static string[] noParamCommand = new string[] { on1, on2, off1, off2, con, coff, close };
 }
