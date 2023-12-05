@@ -108,7 +108,7 @@ public class ArduinoInteractive : MonoBehaviour
 		}
         
         //因為是 WriteLine, 所以送出去的資訊會包含\n
-		arduinoPort.WriteLine(data);
+		arduinoPort.Write(data + "\n");
 	}
 
     void RecieveThread(){

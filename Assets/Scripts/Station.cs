@@ -256,6 +256,16 @@ public class Station : MonoBehaviour
         {
             TelloCommand("battery?");
         }
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            //ArduinoSend("1on\n");
+            ArduinoSend("1on");
+        }
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            //ArduinoSend("1off\n");
+            ArduinoSend("1off");
+        }
     }
 }
 
