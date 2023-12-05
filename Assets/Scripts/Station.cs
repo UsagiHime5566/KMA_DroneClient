@@ -21,6 +21,7 @@ public class Station : MonoBehaviour
 
     [Header("GUI Log")]
     public Text GUILog;
+    public Text RecieveLogResult;
     public Text RecieveLog;
     public int maxMessageLine = 20;
 
@@ -32,9 +33,14 @@ public class Station : MonoBehaviour
 
     UdpClient telloClient;
     Thread telloReceiveThread;
+    Thread telloReceiveResultThread;
     UdpClient udpServer;
+    UdpClient udpServerResult;
     Queue<string> LogString = new Queue<string>();
     Queue<string> RecieveLogString = new Queue<string>();
+    Queue<string> RecieveResultString = new Queue<string>();
+
+    System.Action threadPass;
 
     void Start()
     {
@@ -55,10 +61,14 @@ public class Station : MonoBehaviour
 
     public void TelloServerStart(){
         udpServer = new UdpClient(RecieveHostPort);
+        udpServerResult = new UdpClient(telloHostPort);
 
         // 使用執行緒開始接收資料
         telloReceiveThread = new Thread(ServerLoopReceiveData);
         telloReceiveThread.Start();
+
+        telloReceiveResultThread = new Thread(ServerLoopReceiveResultData);
+        telloReceiveResultThread.Start();
     }
 
     void ServerLoopReceiveData()
@@ -73,7 +83,11 @@ public class Station : MonoBehaviour
                 string receivedMessage = Encoding.UTF8.GetString(receivedData);
 
                 MaxLogMsg(RecieveLogString, $"接收到來自 {clientEndPoint.Address}:{clientEndPoint.Port} 的訊息: {receivedMessage}");
-                RecieveLog.text = GetLogStrings(RecieveLogString);
+                
+                threadPass += () => {
+                    RecieveLog.text = GetLogStrings(RecieveLogString);
+                };
+                
             }
         }
         catch (SocketException ex)
@@ -83,8 +97,35 @@ public class Station : MonoBehaviour
         }
     }
 
+    void ServerLoopReceiveResultData()
+    {
+        try
+        {
+            while (true)
+            {
+                IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
+
+                byte[] receivedData = udpServerResult.Receive(ref clientEndPoint);
+                string receivedMessage = Encoding.UTF8.GetString(receivedData);
+
+                MaxLogMsg(RecieveResultString, $"接收到來自 {clientEndPoint.Address}:{clientEndPoint.Port} 的訊息: {receivedMessage}");
+                
+                threadPass += () => {
+                    RecieveLogResult.text = GetLogStrings(RecieveResultString);
+                };
+                
+            }
+        }
+        catch (SocketException ex)
+        {
+            // 在執行緒中捕獲例外狀況
+            MaxLogMsg(RecieveResultString, $"錯誤: {ex.Message}");
+        }
+    }
+
     private void OnDestroy() {
         telloReceiveThread.Abort();
+        telloReceiveResultThread.Abort();
     }
 
     private void TelloCommand(string mess)
@@ -152,6 +193,10 @@ public class Station : MonoBehaviour
 
     void Update()
     {
+        if(threadPass != null){
+            threadPass.Invoke();
+            threadPass = null;
+        }
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             TelloCommand(TelloCommands.takeoff);
@@ -206,6 +251,10 @@ public class Station : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Home))
         {
             TelloCommand("sdk?");
+        }
+        if (Input.GetKeyDown(KeyCode.Delete))
+        {
+            TelloCommand("battery?");
         }
     }
 }
