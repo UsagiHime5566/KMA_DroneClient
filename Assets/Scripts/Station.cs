@@ -15,6 +15,8 @@ public class Station : MonoBehaviour
     public int telloHostPort = 8889;
     public string RecieveTelloIP = "0.0.0.0";
     public int RecieveHostPort = 8890;
+    public int RecieveHostResultPort = 9000;
+    public float reconnectDelay = 10;
 
     [Header("Arduino 常數")]
     public ArduinoInteractive arduino;
@@ -27,25 +29,26 @@ public class Station : MonoBehaviour
 
     [Header("Systems")]
     public OSCAdapter oscAdapter;
+    public KeyboardFly keyboardFly;
 
     [Header("Tello Params")]
     public int TelloStep = 20;
 
     UdpClient telloClient;
-    Thread telloReceiveThread;
     Thread telloReceiveResultThread;
-    UdpClient udpServer;
+    Thread telloReceiveThread;
     UdpClient udpServerResult;
+    UdpClient udpServer;
     Queue<string> LogString = new Queue<string>();
-    Queue<string> RecieveLogString = new Queue<string>();
     Queue<string> RecieveResultString = new Queue<string>();
+    Queue<string> RecieveLogString = new Queue<string>();
 
     System.Action threadPass;
 
     void Start()
     {
         //飛行器連接
-        UDPConnect();
+        StartCoroutine(AutoReconnect());
 
         //飛行器接收端
         TelloServerStart();
@@ -54,18 +57,31 @@ public class Station : MonoBehaviour
         CommandsScribe();
     }
 
+    IEnumerator AutoReconnect(){
+        WaitForSeconds wait = new WaitForSeconds(reconnectDelay);
+
+        yield return new WaitForSeconds(1); 
+        while(true){
+            UDPConnect();
+            DebugLogUI("* UDP 自動重新連接", GUILog, LogString);
+            yield return wait; 
+        }
+    }
+
     void CommandsScribe(){
         oscAdapter.OnTelloCommand += TelloCommand;
         oscAdapter.OnArduinoCommand += ArduinoSend;
+
+        keyboardFly.OnKeyboardEvent += TelloCommand;
     } 
 
     public void TelloServerStart(){
-        udpServer = new UdpClient(RecieveHostPort);
-        udpServerResult = new UdpClient(telloHostPort);
+        //udpServer = new UdpClient(RecieveHostPort);
+        udpServerResult = new UdpClient(RecieveHostResultPort);
 
         // 使用執行緒開始接收資料
-        telloReceiveThread = new Thread(ServerLoopReceiveData);
-        telloReceiveThread.Start();
+        //telloReceiveThread = new Thread(ServerLoopReceiveData);
+        //telloReceiveThread.Start();
 
         telloReceiveResultThread = new Thread(ServerLoopReceiveResultData);
         telloReceiveResultThread.Start();
@@ -82,10 +98,8 @@ public class Station : MonoBehaviour
                 byte[] receivedData = udpServer.Receive(ref clientEndPoint);
                 string receivedMessage = Encoding.UTF8.GetString(receivedData);
 
-                MaxLogMsg(RecieveLogString, $"接收到來自 {clientEndPoint.Address}:{clientEndPoint.Port} 的訊息: {receivedMessage}");
-                
                 threadPass += () => {
-                    RecieveLog.text = GetLogStrings(RecieveLogString);
+                    DebugLogUI($"接收到來自 {clientEndPoint.Address}:{clientEndPoint.Port} 的訊息: {receivedMessage}",RecieveLog  , RecieveLogString);
                 };
                 
             }
@@ -93,7 +107,9 @@ public class Station : MonoBehaviour
         catch (SocketException ex)
         {
             // 在執行緒中捕獲例外狀況
-            MaxLogMsg(RecieveLogString, $"錯誤: {ex.Message}");
+            threadPass += () => {
+                DebugLogUI($"錯誤: {ex.Message}", RecieveLog, RecieveLogString);
+            };
         }
     }
 
@@ -103,15 +119,13 @@ public class Station : MonoBehaviour
         {
             while (true)
             {
-                IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Parse("0.0.0.0"), 0);
 
                 byte[] receivedData = udpServerResult.Receive(ref clientEndPoint);
                 string receivedMessage = Encoding.UTF8.GetString(receivedData);
 
-                MaxLogMsg(RecieveResultString, $"接收到來自 {clientEndPoint.Address}:{clientEndPoint.Port} 的訊息: {receivedMessage}");
-                
                 threadPass += () => {
-                    RecieveLogResult.text = GetLogStrings(RecieveResultString);
+                    DebugLogUI($"接收到來自 {clientEndPoint.Address}:{clientEndPoint.Port} 的訊息: {receivedMessage}", RecieveLogResult, RecieveResultString);
                 };
                 
             }
@@ -119,25 +133,26 @@ public class Station : MonoBehaviour
         catch (SocketException ex)
         {
             // 在執行緒中捕獲例外狀況
-            MaxLogMsg(RecieveResultString, $"錯誤: {ex.Message}");
+            threadPass += () => {
+                DebugLogUI($"錯誤: {ex.Message}", RecieveLogResult, RecieveResultString);
+            };
         }
     }
 
-    private void OnDestroy() {
+    void OnDestroy() {
         telloReceiveThread.Abort();
         telloReceiveResultThread.Abort();
     }
 
-    private void TelloCommand(string mess)
+    void TelloCommand(string mess)
     {
-        MaxLogMsg(LogString, $"TelloSend: {mess}");
-        GUILog.text = GetLogStrings(LogString);
+        //DebugLogUI($"TelloSend: {mess}", GUILog, LogString);
 
-        //UDPConnect();
-        if(!IsUdpConnected()){
-            UDPConnect();
-            MaxLogMsg(LogString, "UDP 重新連接");
-        }
+        // UDPConnect();
+        // if(!IsUdpConnected()){
+        //     UDPConnect();
+        //     MaxLogMsg(LogString, "UDP 重新連接");
+        // }
         
         try {
             byte[] cmd = Encoding.UTF8.GetBytes(mess);
@@ -148,9 +163,8 @@ public class Station : MonoBehaviour
         }
     }
 
-    private void ArduinoSend(string msg){
-        MaxLogMsg(LogString, $"ArduinoSend: {msg}");
-        GUILog.text = GetLogStrings(LogString);
+    void ArduinoSend(string msg){
+        DebugLogUI($"ArduinoSend: {msg}", GUILog, LogString);
         arduino.SendData(msg);
     }
 
@@ -174,21 +188,20 @@ public class Station : MonoBehaviour
         }
     }
 
-    void MaxLogMsg(Queue<string> str, string msg){
+    void DebugLogUI(string msg, Text txt, Queue<string> str){
         str.Enqueue(msg);
         if(str.Count > maxMessageLine)
             str.Dequeue();
 
-        Debug.Log(msg);
-    }
-
-    string GetLogStrings(Queue<string> str){
         string s = "";
         foreach (var item in str)
         {
             s = item + "\n" + s;
         }
-        return s;
+        
+        txt.text = s;
+
+        //Debug.Log(msg);
     }
 
     void Update()
@@ -196,75 +209,6 @@ public class Station : MonoBehaviour
         if(threadPass != null){
             threadPass.Invoke();
             threadPass = null;
-        }
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-        {
-            TelloCommand(TelloCommands.takeoff);
-        }
-
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            TelloCommand(TelloCommands.land);
-        }
-
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            TelloCommand(TelloCommands.command);
-        }
-
-        if (Input.GetKeyDown(KeyCode.Z))
-        {
-            TelloCommand(TelloCommands.up+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.C))
-        {
-            TelloCommand(TelloCommands.down+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.W))
-        {
-            TelloCommand(TelloCommands.forward+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.S))
-        {
-            TelloCommand(TelloCommands.back+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.A))
-        {
-            TelloCommand(TelloCommands.left+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.D))
-        {
-            TelloCommand(TelloCommands.right+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.Q))
-        {
-            TelloCommand(TelloCommands.cw+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            TelloCommand(TelloCommands.ccw+" "+TelloStep);
-        }
-        if (Input.GetKeyDown(KeyCode.X))
-        {
-            TelloCommand(TelloCommands.stop);
-        }
-        if (Input.GetKeyDown(KeyCode.Home))
-        {
-            TelloCommand("sdk?");
-        }
-        if (Input.GetKeyDown(KeyCode.Delete))
-        {
-            TelloCommand("battery?");
-        }
-        if (Input.GetKeyDown(KeyCode.UpArrow))
-        {
-            //ArduinoSend("1on\n");
-            ArduinoSend("1on");
-        }
-        if (Input.GetKeyDown(KeyCode.DownArrow))
-        {
-            //ArduinoSend("1off\n");
-            ArduinoSend("1off");
         }
     }
 }
