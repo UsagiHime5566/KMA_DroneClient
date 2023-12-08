@@ -7,8 +7,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using TelloLib;
+using System;
+using Unity.VisualScripting;
+using System.Reflection;
 
-public class Station : MonoBehaviour
+public class Station : HimeLib.SingletonMono<Station>
 {
     [Header("Arduino 常數")]
     public ArduinoInteractive arduino;
@@ -17,20 +20,42 @@ public class Station : MonoBehaviour
     public Text TXT_Command;
     public Text TXT_TelloStats;
     public Text TXT_Battery;
+    public InputField INP_StationIndex;
     public int maxMessageLine = 20;
 
     [Header("Systems")]
+    public int StationIndex;
     public OSCAdapter oscAdapter;
+    public OscPropertySender batterySender;
+    public OscPropertySender statSender;
     Queue<string> Log_Command = new Queue<string>();
 
     System.Action threadPass;
 
     void Start()
     {
+        MemorySetting();
         //OSC接收端
         CommandsScribe();
 
         Tello.onUpdate += Tello_onUpdate;
+    }
+
+    void MemorySetting(){
+        INP_StationIndex.onValueChanged.AddListener(x => {
+            StationIndex = Convert.ToInt32(x);
+            SystemConfig.Instance.SaveData("station", StationIndex);
+
+            FieldInfo field1 = typeof(OscPropertySender).GetField("_oscAddress", BindingFlags.NonPublic | BindingFlags.Instance);
+            field1?.SetValue(batterySender, $"/battery{StationIndex}");
+            batterySender.enabled = true;
+            
+            FieldInfo field2 = typeof(OscPropertySender).GetField("_oscAddress", BindingFlags.NonPublic | BindingFlags.Instance);
+            field2?.SetValue(statSender, $"/stat{StationIndex}");
+            statSender.enabled = true;
+        });
+        var memIndex = SystemConfig.Instance.GetData<int>("station", -1);
+        INP_StationIndex.text = memIndex.ToString();
     }
 
     void CommandsScribe(){
@@ -44,7 +69,7 @@ public class Station : MonoBehaviour
 	{
         threadPass += () => {
             TXT_TelloStats.text = "" + Tello.state;
-            TXT_Battery.text = string.Format("Battery {0} %", ((TelloLib.Tello.state != null) ? ("" + TelloLib.Tello.state.batteryPercentage) : " - "));
+            TXT_Battery.text = string.Format("Battery {0} %", (TelloLib.Tello.state != null) ? ("" + TelloLib.Tello.state.batteryPercentage) : " - ");
         };
 	}
 
