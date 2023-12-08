@@ -28,7 +28,8 @@ public class AutoGenerateBat :MonoBehaviour
             //writer.WriteLine("reg add %regkey% /v \"Screenmanager Resolution Height_h2627697771\" /T REG_DWORD /D 1080 /f");
             //writer.WriteLine("endlocal");
             //writer.WriteLine(Application.productName + ".exe -screen-width 1920 -screen-height 1080 -screen-fullscreen 1");
-            writer.WriteLine(Application.productName + ".exe -screen-fullscreen 1");
+            //writer.WriteLine(Application.productName + ".exe -screen-fullscreen 1");
+            writer.WriteLine(Application.productName + ".exe");
             writer.Flush();
             file.Close();
 #endif
