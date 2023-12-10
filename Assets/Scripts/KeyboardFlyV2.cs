@@ -2,31 +2,22 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TelloLib;
+using UnityEngine.UI;
 
 public class KeyboardFlyV2 : MonoBehaviour
 {
+	public Toggle TG_EnableSelf;
     void Awake(){
-        Tello.onConnection += Tello_onConnection;
+        
     }
-
-    void Tello_onConnection(Tello.ConnectionState newState)
-	{
-		//Debug.Log("Tello_onConnection : " + newState);
-		if (newState == Tello.ConnectionState.Connected) {
-            Tello.queryAttAngle();
-            Tello.setMaxHeight(50);
-		}
-	}
-
     void Start()
     {
-        Tello.startConnecting();
+        TG_EnableSelf.onValueChanged.AddListener(x => {
+			this.enabled = x;
+			SystemConfig.Instance.SaveData("UseKB", x);
+		});
+		TG_EnableSelf.isOn = SystemConfig.Instance.GetData<bool>("UseKB");
     }
-
-    void OnApplicationQuit()
-	{
-		Tello.stopConnecting();
-	}
 
     // Update is called once per frame
     void Update()
@@ -37,10 +28,10 @@ public class KeyboardFlyV2 : MonoBehaviour
 			Tello.land();
 		}
 
-		float lx = 0f;
-		float ly = 0f;
-		float rx = 0f;
-		float ry = 0f;
+		float lx = 0f;			//旋轉
+		float ly = 0f;			//上下
+		float rx = 0f;			//左右
+		float ry = 0f;			//前後
 
 		if (Input.GetKey(KeyCode.W)) {
 			ry = 1;
@@ -67,5 +58,6 @@ public class KeyboardFlyV2 : MonoBehaviour
 			lx = -1;
 		}
 		Tello.controllerState.setAxis(lx, ly, rx, ry);
+		//旋轉,上下,左右,前後
     }
 }

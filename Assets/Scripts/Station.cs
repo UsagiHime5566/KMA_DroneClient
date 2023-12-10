@@ -31,6 +31,10 @@ public class Station : HimeLib.SingletonMono<Station>
     Queue<string> Log_Command = new Queue<string>();
 
     System.Action threadPass;
+    float lx = 0f;			//旋轉
+    float ly = 0f;			//上下
+    float rx = 0f;			//左右
+    float ry = 0f;			//前後
 
     void Start()
     {
@@ -38,8 +42,20 @@ public class Station : HimeLib.SingletonMono<Station>
         //OSC接收端
         CommandsScribe();
 
+        Tello.onConnection += Tello_onConnection;
         Tello.onUpdate += Tello_onUpdate;
+
+        Tello.startConnecting();
     }
+
+    void Tello_onConnection(Tello.ConnectionState newState)
+	{
+		//Debug.Log("Tello_onConnection : " + newState);
+		if (newState == Tello.ConnectionState.Connected) {
+            Tello.queryAttAngle();
+            Tello.setMaxHeight(50);
+		}
+	}
 
     void MemorySetting(){
         INP_StationIndex.onValueChanged.AddListener(x => {
@@ -59,7 +75,7 @@ public class Station : HimeLib.SingletonMono<Station>
     }
 
     void CommandsScribe(){
-        //oscAdapter.OnTelloCommand += TelloCommand;
+        oscAdapter.OnTelloSDKCommand += TelloCommandSDK;
         oscAdapter.OnArduinoCommand += ArduinoSend;
 
         //keyboardFly.OnKeyboardEvent += TelloCommand;
@@ -72,6 +88,40 @@ public class Station : HimeLib.SingletonMono<Station>
             TXT_Battery.text = string.Format("Battery {0} %", (TelloLib.Tello.state != null) ? ("" + TelloLib.Tello.state.batteryPercentage) : " - ");
         };
 	}
+
+    void TelloCommandSDK(string msg){
+        if(msg.Contains(TelloSDKCommands.takeoff)){
+            Tello.takeOff();
+            return;
+        }
+        if(msg.Contains(TelloSDKCommands.land)){
+            Tello.land();
+            return;
+        }
+        if(msg.Contains(TelloSDKCommands.stay)){
+            lx = 0;
+            ly = 0;
+            rx = 0;
+            ry = 0;
+            return;
+        }
+        try {
+            string [] splte = msg.Split(" ");
+            float.TryParse(splte[1], out float x);
+            float.TryParse(splte[2], out float y);
+            float.TryParse(splte[3], out float z);
+            float.TryParse(splte[4], out float r);
+
+            lx = x;
+            ly = y;
+            rx = z;
+            ry = r;
+
+            //Tello.controllerState.setAxis(lx, ly, rx, ry);
+            //旋轉,上下,左右,前後
+            //Tello.controllerState.setAxis(r, y, x, z);
+        } catch {}
+    }
 
     void ArduinoSend(string msg){
         DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
@@ -99,7 +149,14 @@ public class Station : HimeLib.SingletonMono<Station>
             threadPass.Invoke();
             threadPass = null;
         }
+
+        Tello.controllerState.setAxis(lx, ly, rx, ry);
     }
+
+    void OnApplicationQuit()
+	{
+		Tello.stopConnecting();
+	}
 }
 
 
@@ -119,8 +176,18 @@ public class TelloCommands
     public static string cw = "cw";             //with 1 param
     public static string ccw = "ccw";           //with 1 param
     public static string speed = "speed";      //with 1 param
+    
     public static string[] noParamCommand = new string[] { takeoff, land, command, stop };
-    public static string[] withParamCommand = new string[] { rc, up, down, forward, back, left, right, cw, ccw };
+    public static string[] withParamCommand = new string[] { rc, up, down, forward, back, left, right, cw, ccw};
+}
+
+public class TelloSDKCommands
+{
+    public static string takeoff = "takeoff";
+    public static string land = "land";
+    public static string stay = "stay";
+    public static string axis = "axis";
+    public static string[] commands = new string[] { takeoff, land, stay, axis };
 }
 
 public class ArduinoCommands

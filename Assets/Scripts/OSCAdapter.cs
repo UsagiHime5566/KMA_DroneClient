@@ -5,8 +5,9 @@ using UnityEngine;
 
 public class OSCAdapter : MonoBehaviour
 {
-    public Action<string> OnTelloCommand;
+    public Action<string> OnTelloRawCommand;
     public Action<string> OnArduinoCommand;
+    public Action<string> OnTelloSDKCommand;
 
     public void OnCmdCome(string msg){
         Debug.Log($"Come OSC cmd: {msg}");
@@ -14,7 +15,7 @@ public class OSCAdapter : MonoBehaviour
         foreach (var cmd in TelloCommands.noParamCommand)
         {
             if(msg == cmd){
-                OnTelloCommand?.Invoke(cmd);
+                OnTelloRawCommand?.Invoke(cmd);
                 break;
             }
         }
@@ -23,7 +24,16 @@ public class OSCAdapter : MonoBehaviour
         {
             if(msg.Contains(cmd))
             {
-                OnTelloCommand?.Invoke(msg);
+                OnTelloRawCommand?.Invoke(msg);
+                break;
+            }
+        }
+
+        foreach (var cmd in TelloSDKCommands.commands)
+        {
+            if(msg.Contains(cmd))
+            {
+                OnTelloSDKCommand?.Invoke(msg);
                 break;
             }
         }
