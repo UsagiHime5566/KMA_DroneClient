@@ -24,12 +24,14 @@ public class Station : HimeLib.SingletonMono<Station>
     public int maxMessageLine = 20;
 
     [Header("Systems")]
+    public float noCommandTimeLimit = 1;
     public int StationIndex;
     public OSCAdapter oscAdapter;
     public OscPropertySender batterySender;
     public OscPropertySender statSender;
     Queue<string> Log_Command = new Queue<string>();
 
+    float noCommandTime = 0;
     System.Action threadPass;
     float lx = 0f;			//旋轉
     float ly = 0f;			//上下
@@ -117,6 +119,8 @@ public class Station : HimeLib.SingletonMono<Station>
             rx = z;
             ry = r;
 
+            noCommandTime = 0;
+
             //Tello.controllerState.setAxis(lx, ly, rx, ry);
             //旋轉,上下,左右,前後
             //Tello.controllerState.setAxis(r, y, x, z);
@@ -148,6 +152,15 @@ public class Station : HimeLib.SingletonMono<Station>
         if(threadPass != null){
             threadPass.Invoke();
             threadPass = null;
+        }
+
+        noCommandTime += Time.deltaTime;
+        if(noCommandTime > noCommandTimeLimit){
+            noCommandTime = 0;
+            lx = 0;
+            ly = 0;
+            rx = 0;
+            ry = 0;
         }
 
         Tello.controllerState.setAxis(lx, ly, rx, ry);
