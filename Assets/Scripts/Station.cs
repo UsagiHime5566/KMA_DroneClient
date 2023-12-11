@@ -68,6 +68,10 @@ public class Station : HimeLib.SingletonMono<Station>
             bPush = false;
 
             yield return new WaitForSeconds(1);
+
+            DebugLogUI($"ArduinoSend: {ArduinoCommands.coff} (Auto Reset)", TXT_Command, Log_Command);
+            yield return new WaitForSeconds(1);
+            DebugLogUI($"ArduinoSend: {ArduinoCommands.poff} (Auto Reset)", TXT_Command, Log_Command);
         }
     }
 
