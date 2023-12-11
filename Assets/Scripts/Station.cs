@@ -15,7 +15,6 @@ public class Station : HimeLib.SingletonMono<Station>
 {
     [Header("Arduino 常數")]
     public ArduinoInteractive arduino;
-
     [Header("GUI Log")]
     public Text TXT_Command;
     public Text TXT_TelloStats;
@@ -92,12 +91,15 @@ public class Station : HimeLib.SingletonMono<Station>
 	}
 
     void TelloCommandSDK(string msg){
+
         if(msg.Contains(TelloSDKCommands.takeoff)){
             Tello.takeOff();
+            DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
             return;
         }
         if(msg.Contains(TelloSDKCommands.land)){
             Tello.land();
+            DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
             return;
         }
         if(msg.Contains(TelloSDKCommands.stay)){
@@ -105,6 +107,7 @@ public class Station : HimeLib.SingletonMono<Station>
             ly = 0;
             rx = 0;
             ry = 0;
+            DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
             return;
         }
         try {
@@ -121,9 +124,14 @@ public class Station : HimeLib.SingletonMono<Station>
 
             noCommandTime = 0;
 
+            if(x != 0 || y != 0 || z != 0 || r != 0){
+                DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
+            }
+
             //Tello.controllerState.setAxis(lx, ly, rx, ry);
             //旋轉,上下,左右,前後
             //Tello.controllerState.setAxis(r, y, x, z);
+
         } catch {}
     }
 
