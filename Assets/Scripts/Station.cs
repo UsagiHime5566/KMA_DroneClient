@@ -94,11 +94,13 @@ public class Station : HimeLib.SingletonMono<Station>
 
         if(msg.Contains(TelloSDKCommands.takeoff)){
             Tello.takeOff();
+            NewCommandCome();
             DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
             return;
         }
         if(msg.Contains(TelloSDKCommands.land)){
             Tello.land();
+            NewCommandCome();
             DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
             return;
         }
@@ -107,6 +109,7 @@ public class Station : HimeLib.SingletonMono<Station>
             ly = 0;
             rx = 0;
             ry = 0;
+            NewCommandCome();
             DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
             return;
         }
@@ -122,7 +125,7 @@ public class Station : HimeLib.SingletonMono<Station>
             rx = z;
             ry = r;
 
-            noCommandTime = 0;
+            NewCommandCome();
 
             if(x != 0 || y != 0 || z != 0 || r != 0){
                 DebugLogUI($"TelloSend: {msg}", TXT_Command, Log_Command);
@@ -138,6 +141,22 @@ public class Station : HimeLib.SingletonMono<Station>
     void ArduinoSend(string msg){
         DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
         arduino.SendData(msg);
+    }
+
+    public void DebugLogUI(string msg){
+        DebugLogUI($"Keyboard Send: {msg}", TXT_Command, Log_Command);
+    }
+
+    public void NewCommandCome(){
+        noCommandTime = 0;
+    }
+
+    public void SetMainAxis(float _lx, float _ly, float _rx, float _ry){
+        lx = _lx;
+        ly = _ly;
+        rx = _rx;
+        ry = _ry;
+        NewCommandCome();
     }
 
     void DebugLogUI(string msg, Text txt, Queue<string> str){
@@ -169,6 +188,7 @@ public class Station : HimeLib.SingletonMono<Station>
             ly = 0;
             rx = 0;
             ry = 0;
+            DebugLogUI($"TelloSend (No Command): axis 0 0 0 0", TXT_Command, Log_Command);
         }
 
         Tello.controllerState.setAxis(lx, ly, rx, ry);
