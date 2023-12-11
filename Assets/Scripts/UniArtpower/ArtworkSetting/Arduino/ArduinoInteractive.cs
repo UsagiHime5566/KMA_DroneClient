@@ -25,7 +25,7 @@ public class ArduinoInteractive : MonoBehaviour
     */
 
     [Header("自動化設定")]
-    [Tooltip("是否執行後就開啟相機")] public bool runInStart = false;
+    [Tooltip("是否執行後就開啟Arduino")] public bool runInStart = false;
 
     [Header("目前參數")]
     [SerializeField] bool ArduinoPortState = false;
@@ -36,6 +36,7 @@ public class ArduinoInteractive : MonoBehaviour
     //public delegate
     public Action<string> OnRecieveData;
 	public Action<string> OnArduinoLogs;
+	public Action OnArduinoInitialzed;
 	public bool ArduinoPortIsOpen => GetArduinoPortState();
 
     //private works
@@ -84,6 +85,8 @@ public class ArduinoInteractive : MonoBehaviour
 			recThread = new Thread (RecieveThread);
 			recThread.Start ();
 
+			OnArduinoInitialzed?.Invoke();
+			
 			DebugLog( $"Open port '{comName}' sucessful!!" );
 		}
 		else

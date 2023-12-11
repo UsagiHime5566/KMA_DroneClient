@@ -37,6 +37,9 @@ public class Station : HimeLib.SingletonMono<Station>
     float rx = 0f;			//左右
     float ry = 0f;			//前後
 
+    bool aPush = false;
+    bool bPush = false;
+
     void Start()
     {
         MemorySetting();
@@ -47,6 +50,25 @@ public class Station : HimeLib.SingletonMono<Station>
         Tello.onUpdate += Tello_onUpdate;
 
         Tello.startConnecting();
+    }
+
+    public void ArduinoInit(){
+        
+        StartCoroutine(_arduinoInit());
+
+        IEnumerator _arduinoInit(){
+            DebugLogUI($"ArduinoSend: {ArduinoCommands.off1} (Auto Reset)", TXT_Command, Log_Command);
+            arduino.SendData(ArduinoCommands.off1);
+            aPush = false;
+
+            yield return new WaitForSeconds(2);
+
+            DebugLogUI($"ArduinoSend: {ArduinoCommands.off2} (Auto Reset)", TXT_Command, Log_Command);
+            arduino.SendData(ArduinoCommands.off2);
+            bPush = false;
+
+            yield return new WaitForSeconds(1);
+        }
     }
 
     void Tello_onConnection(Tello.ConnectionState newState)
@@ -79,6 +101,7 @@ public class Station : HimeLib.SingletonMono<Station>
         oscAdapter.OnTelloSDKCommand += TelloCommandSDK;
         oscAdapter.OnArduinoCommand += ArduinoSend;
 
+        arduino.OnArduinoInitialzed += ArduinoInit;
         //keyboardFly.OnKeyboardEvent += TelloCommand;
     } 
 
@@ -138,9 +161,51 @@ public class Station : HimeLib.SingletonMono<Station>
         } catch {}
     }
 
-    void ArduinoSend(string msg){
+    public void ArduinoSend(string msg){
+
+        if(msg == ArduinoCommands.on1){
+            if(bPush == true){
+                DebugLogUI($"ArduinoSend: {msg} but 2 is on, skip..", TXT_Command, Log_Command);
+            } else {
+                aPush = true;
+                DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            }
+            return;
+        }
+        if(msg == ArduinoCommands.on2){
+            if(aPush == true){
+                DebugLogUI($"ArduinoSend: {msg} but 1 is on, skip..", TXT_Command, Log_Command);
+            } else {
+                bPush = true;
+                DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            }
+            return;
+        }
+        if(msg == ArduinoCommands.off1){
+            aPush = false;
+            DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            return;
+        }
+        if(msg == ArduinoCommands.off2){
+            bPush = false;
+            DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            return;
+        }
+        if(msg == ArduinoCommands.turnpower){
+            StartCoroutine(TurnPower());
+            DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            return;
+        }
+
+        //其他不須防呆指令
         DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
         arduino.SendData(msg);
+    }
+
+    IEnumerator TurnPower(){
+        arduino.SendData(ArduinoCommands.pon);
+        yield return new WaitForSeconds(0.3f);
+        arduino.SendData(ArduinoCommands.poff);
     }
 
     public void DebugLogUI(string msg){
@@ -237,8 +302,12 @@ public class ArduinoCommands
     public static string on2 = "2on";
     public static string off1 = "1off";
     public static string off2 = "2off";
+    public static string pon = "pon";
+    public static string poff = "poff";
     public static string con = "con";
     public static string coff = "coff";
-    public static string close = "close";
-    public static string[] noParamCommand = new string[] { on1, on2, off1, off2, con, coff, close };
+
+    //mixed command
+    public static string turnpower = "turnpower";
+    public static string[] noParamCommand = new string[] { on1, on2, off1, off2, pon, poff, con, coff };
 }

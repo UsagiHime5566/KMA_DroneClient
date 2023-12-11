@@ -80,7 +80,7 @@ public class SerialHelper : MonoBehaviour
 
         yield return new WaitForSeconds(10);
         
-        arduinoInteractive.SendData("c");
+        //arduinoInteractive.SendData("c");
     }
 
     async void RestartArduino(){
@@ -89,7 +89,7 @@ public class SerialHelper : MonoBehaviour
         if(this == null) return;
         arduinoInteractive.StartSerial();
         await Task.Delay(5000);
-        arduinoInteractive.SendData("c");
+        //arduinoInteractive.SendData("c");
     }
 
     WaitForSeconds wait = new WaitForSeconds(1.0f);
