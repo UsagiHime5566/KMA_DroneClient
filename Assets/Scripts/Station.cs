@@ -168,6 +168,7 @@ public class Station : HimeLib.SingletonMono<Station>
                 DebugLogUI($"ArduinoSend: {msg} but 2 is on, skip..", TXT_Command, Log_Command);
             } else {
                 aPush = true;
+                arduino.SendData(msg);
                 DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
             }
             return;
@@ -177,17 +178,20 @@ public class Station : HimeLib.SingletonMono<Station>
                 DebugLogUI($"ArduinoSend: {msg} but 1 is on, skip..", TXT_Command, Log_Command);
             } else {
                 bPush = true;
+                arduino.SendData(msg);
                 DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
             }
             return;
         }
         if(msg == ArduinoCommands.off1){
             aPush = false;
+            arduino.SendData(msg);
             DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
             return;
         }
         if(msg == ArduinoCommands.off2){
             bPush = false;
+            arduino.SendData(msg);
             DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
             return;
         }
