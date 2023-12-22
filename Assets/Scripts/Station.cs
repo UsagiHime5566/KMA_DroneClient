@@ -23,6 +23,8 @@ public class Station : HimeLib.SingletonMono<Station>
     public int maxMessageLine = 20;
 
     [Header("Systems")]
+    public float retryPowerOn = 60;
+    public float retryPowerOff = 5;
     public float noCommandTimeLimit = 1;
     public int StationIndex;
     public OSCAdapter oscAdapter;
@@ -50,6 +52,8 @@ public class Station : HimeLib.SingletonMono<Station>
         Tello.onUpdate += Tello_onUpdate;
 
         Tello.startConnecting();
+
+        StartCoroutine(TelloCommandLoop());
     }
 
     public void ArduinoInit(){
@@ -70,8 +74,8 @@ public class Station : HimeLib.SingletonMono<Station>
             yield return new WaitForSeconds(1);
 
             DebugLogUI($"ArduinoSend: {ArduinoCommands.coff} (Auto Reset)", TXT_Command, Log_Command);
+            arduino.SendData(ArduinoCommands.coff);
             yield return new WaitForSeconds(1);
-            DebugLogUI($"ArduinoSend: {ArduinoCommands.poff} (Auto Reset)", TXT_Command, Log_Command);
         }
     }
 
@@ -199,8 +203,28 @@ public class Station : HimeLib.SingletonMono<Station>
             DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
             return;
         }
+        if(msg == ArduinoCommands.con){
+            arduino.SendData(msg);
+            DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            return;
+        }
+        if(msg == ArduinoCommands.coff){
+            arduino.SendData(msg);
+            DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            return;
+        }
         if(msg == ArduinoCommands.turnpower){
             StartCoroutine(TurnPower());
+            DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            return;
+        }
+        if(msg == ArduinoCommands.poweron){
+            StartCoroutine(PowerOn());
+            DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
+            return;
+        }
+        if(msg == ArduinoCommands.poweroff){
+            StartCoroutine(PowerOff());
             DebugLogUI($"ArduinoSend: {msg}", TXT_Command, Log_Command);
             return;
         }
@@ -214,6 +238,40 @@ public class Station : HimeLib.SingletonMono<Station>
         arduino.SendData(ArduinoCommands.pon);
         yield return new WaitForSeconds(0.3f);
         arduino.SendData(ArduinoCommands.poff);
+    }
+
+    IEnumerator PowerOn(){
+        yield return null;
+
+        if(Tello.connected == false){
+            yield return TurnPower();
+        }
+
+        yield return new WaitForSeconds(retryPowerOn);
+
+        if(Tello.connected == false){
+            yield return TurnPower();
+        }
+    }
+
+    IEnumerator PowerOff(){
+        yield return null;
+
+        if(Tello.connected == true){
+            yield return TurnPower();
+        }
+
+        yield return new WaitForSeconds(retryPowerOff);
+
+        if(Tello.connected == true){
+            yield return TurnPower();
+        }
+
+        yield return new WaitForSeconds(retryPowerOff);
+
+        if(Tello.connected == true){
+            yield return TurnPower();
+        }
     }
 
     public void DebugLogUI(string msg){
@@ -261,10 +319,24 @@ public class Station : HimeLib.SingletonMono<Station>
             ly = 0;
             rx = 0;
             ry = 0;
-            DebugLogUI($"TelloSend (No Command): axis 0 0 0 0", TXT_Command, Log_Command);
+            if(Tello.state != null){
+                if(Tello.state.flying == true){
+                    DebugLogUI($"TelloSend (No Command): axis 0 0 0 0", TXT_Command, Log_Command);
+                }
+            }
         }
+    }
 
-        Tello.controllerState.setAxis(lx, ly, rx, ry);
+    IEnumerator TelloCommandLoop(){
+        WaitForSeconds wait = new WaitForSeconds(0.33f);
+        while(true){
+            if(Tello.state != null){
+                if(Tello.state.flying == true){
+                    Tello.controllerState.setAxis(lx, ly, rx, ry);
+                }
+            }
+            yield return wait; 
+        }
     }
 
     void OnApplicationQuit()
@@ -317,5 +389,7 @@ public class ArduinoCommands
 
     //mixed command
     public static string turnpower = "turnpower";
-    public static string[] noParamCommand = new string[] { on1, on2, off1, off2, pon, poff, con, coff };
+    public static string poweron = "poweron";
+    public static string poweroff = "poweroff";
+    public static string[] noParamCommand = new string[] { on1, on2, off1, off2, pon, poff, con, coff, turnpower, poweron, poweroff };
 }
