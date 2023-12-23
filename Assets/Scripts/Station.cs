@@ -20,6 +20,7 @@ public class Station : HimeLib.SingletonMono<Station>
     public Text TXT_TelloStats;
     public Text TXT_Battery;
     public InputField INP_StationIndex;
+    public Toggle TG_backSendData;
     public int maxMessageLine = 20;
 
     [Header("Systems")]
@@ -41,6 +42,8 @@ public class Station : HimeLib.SingletonMono<Station>
 
     bool aPush = false;
     bool bPush = false;
+
+    bool sendBackendData = false;
 
     void Start()
     {
@@ -89,18 +92,27 @@ public class Station : HimeLib.SingletonMono<Station>
 	}
 
     void MemorySetting(){
+        TG_backSendData.onValueChanged.AddListener(x => {
+            sendBackendData = x;
+            SystemConfig.Instance.SaveData("backendData", x);
+        });
+        TG_backSendData.isOn = SystemConfig.Instance.GetData<bool>("backendData", false);
+
         INP_StationIndex.onValueChanged.AddListener(x => {
             StationIndex = Convert.ToInt32(x);
             SystemConfig.Instance.SaveData("station", StationIndex);
 
             FieldInfo field1 = typeof(OscPropertySender).GetField("_oscAddress", BindingFlags.NonPublic | BindingFlags.Instance);
             field1?.SetValue(batterySender, $"/battery{StationIndex}");
-            batterySender.enabled = true;
             
             FieldInfo field2 = typeof(OscPropertySender).GetField("_oscAddress", BindingFlags.NonPublic | BindingFlags.Instance);
             field2?.SetValue(statSender, $"/stat{StationIndex}");
-            statSender.enabled = true;
         });
+        if(sendBackendData){
+            batterySender.enabled = true;
+            statSender.enabled = true;
+        }
+
         var memIndex = SystemConfig.Instance.GetData<int>("station", -1);
         INP_StationIndex.text = memIndex.ToString();
     }
@@ -244,9 +256,28 @@ public class Station : HimeLib.SingletonMono<Station>
     }
 
     IEnumerator RestartProgram(){
-        System.Diagnostics.Process.Start(Application.dataPath.Replace("_Data", ".exe"));
-        yield return new WaitForSeconds(5);
+        GenerateRestartSequence();
+        yield return new WaitForSeconds(1);
         Application.Quit();
+    }
+
+    void GenerateRestartSequence()
+    {
+#if !UNITY_EDITOR
+            string exePath = System.IO.Path.GetDirectoryName(Application.dataPath);
+            string batName = exePath + "/" + "temp.bat";
+            var file = System.IO.File.Open(batName, System.IO.FileMode.Create, System.IO.FileAccess.ReadWrite);
+            var writer = new System.IO.StreamWriter(file);
+            writer.WriteLine("@echo off");
+            writer.WriteLine("echo !!!");
+            writer.WriteLine("echo Wait for system prepare...");
+            writer.WriteLine("ping 127.0.0.1 -n 10 -w 1000");
+            writer.WriteLine("cd /D " + exePath);
+            writer.WriteLine(Application.productName + ".exe");
+            writer.Flush();
+            file.Close();
+            System.Diagnostics.Process.Start("temp.bat");
+#endif
     }
 
     
