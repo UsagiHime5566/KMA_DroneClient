@@ -108,10 +108,11 @@ public class Station : HimeLib.SingletonMono<Station>
     void CommandsScribe(){
         oscAdapter.OnTelloSDKCommand += TelloCommandSDK;
         oscAdapter.OnArduinoCommand += ArduinoSend;
+        oscAdapter.OnComputerCommand += ComputerControl;
 
         arduino.OnArduinoInitialzed += ArduinoInit;
         //keyboardFly.OnKeyboardEvent += TelloCommand;
-    } 
+    }
 
     void Tello_onUpdate(int cmdId)
 	{
@@ -234,6 +235,22 @@ public class Station : HimeLib.SingletonMono<Station>
         arduino.SendData(msg);
     }
 
+    void ComputerControl(string msg){
+        if(msg == ComputerCommands.restart){
+            StartCoroutine(RestartProgram());
+            DebugLogUI($"Computer: {msg}", TXT_Command, Log_Command);
+            return;
+        }
+    }
+
+    IEnumerator RestartProgram(){
+        System.Diagnostics.Process.Start(Application.dataPath.Replace("_Data", ".exe"));
+        yield return new WaitForSeconds(5);
+        Application.Quit();
+    }
+
+    
+
     IEnumerator TurnPower(){
         arduino.SendData(ArduinoCommands.pon);
         yield return new WaitForSeconds(0.3f);
@@ -247,11 +264,11 @@ public class Station : HimeLib.SingletonMono<Station>
             yield return TurnPower();
         }
 
-        yield return new WaitForSeconds(retryPowerOn);
+        // yield return new WaitForSeconds(retryPowerOn);
 
-        if(Tello.connected == false){
-            yield return TurnPower();
-        }
+        // if(Tello.connected == false){
+        //     yield return TurnPower();
+        // }
     }
 
     IEnumerator PowerOff(){
@@ -392,4 +409,10 @@ public class ArduinoCommands
     public static string poweron = "poweron";
     public static string poweroff = "poweroff";
     public static string[] noParamCommand = new string[] { on1, on2, off1, off2, pon, poff, con, coff, turnpower, poweron, poweroff };
+}
+
+public class ComputerCommands
+{
+    public static string restart = "restart";
+    public static string[] noParamCommand = new string[] { restart };
 }

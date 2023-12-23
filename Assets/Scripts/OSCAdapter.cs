@@ -8,6 +8,7 @@ public class OSCAdapter : MonoBehaviour
     public Action<string> OnTelloRawCommand;
     public Action<string> OnArduinoCommand;
     public Action<string> OnTelloSDKCommand;
+    public Action<string> OnComputerCommand;
 
     public void OnCmdCome(string msg){
         Debug.Log($"Come OSC cmd: {msg}");
@@ -42,6 +43,14 @@ public class OSCAdapter : MonoBehaviour
         {
             if(msg == cmd){
                 OnArduinoCommand?.Invoke(cmd);
+                break;
+            }
+        }
+
+        foreach (var cmd in ComputerCommands.noParamCommand)
+        {
+            if(msg == cmd){
+                OnComputerCommand?.Invoke(cmd);
                 break;
             }
         }
