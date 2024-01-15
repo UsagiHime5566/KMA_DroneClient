@@ -9,6 +9,7 @@ public class KeyboardArduino : MonoBehaviour
     public Button BTN_Aoff;
     public Button BTN_Bon;
     public Button BTN_Boff;
+    public Button BTN_Power;
     void Start()
     {
         BTN_Aon.onClick.AddListener(() => {
@@ -23,6 +24,10 @@ public class KeyboardArduino : MonoBehaviour
         });
         BTN_Boff.onClick.AddListener(() => {
             Station.instance.ArduinoSend(ArduinoCommands.off2);
+        });
+
+        BTN_Power.onClick.AddListener(() => {
+            Station.instance.ArduinoSend(ArduinoCommands.turnpower);
         });
     }
 
