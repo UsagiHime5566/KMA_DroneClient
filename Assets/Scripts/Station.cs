@@ -271,9 +271,10 @@ public class Station : HimeLib.SingletonMono<Station>
             writer.WriteLine("@echo off");
             writer.WriteLine("echo !!!");
             writer.WriteLine("echo Wait for system prepare...");
-            writer.WriteLine("ping 127.0.0.1 -n 10 -w 1000");
+            writer.WriteLine("ping 127.0.0.1 -n 3 -w 1000");
             writer.WriteLine("cd /D " + exePath);
-            writer.WriteLine(Application.productName + ".exe");
+            writer.WriteLine("shutdown -r -t 1");
+            //writer.WriteLine(Application.productName + ".exe");
             writer.Flush();
             file.Close();
             System.Diagnostics.Process.Start("temp.bat");

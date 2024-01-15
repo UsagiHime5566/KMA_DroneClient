@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: StatsSender
   m_EditorClassIdentifier: 
   type: 0
-  host: 192.168.0.99
+  host: 192.168.10.99
   port: 25502
