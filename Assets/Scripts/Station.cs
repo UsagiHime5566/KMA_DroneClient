@@ -115,6 +115,8 @@ public class Station : HimeLib.SingletonMono<Station>
 
         var memIndex = SystemConfig.Instance.GetData<int>("station", -1);
         INP_StationIndex.text = memIndex.ToString();
+
+        TXT_Battery.text = SystemConfig.Instance.GetData<string>("lastbattery", "---");
     }
 
     void CommandsScribe(){
@@ -131,6 +133,7 @@ public class Station : HimeLib.SingletonMono<Station>
         threadPass += () => {
             TXT_TelloStats.text = "" + Tello.state;
             TXT_Battery.text = string.Format("Battery {0} %", (TelloLib.Tello.state != null) ? ("" + TelloLib.Tello.state.batteryPercentage) : " - ");
+            SystemConfig.Instance.SaveData("lastbattery", TXT_Battery.text);
         };
 	}
 
@@ -271,10 +274,10 @@ public class Station : HimeLib.SingletonMono<Station>
             writer.WriteLine("@echo off");
             writer.WriteLine("echo !!!");
             writer.WriteLine("echo Wait for system prepare...");
-            writer.WriteLine("ping 127.0.0.1 -n 3 -w 1000");
+            writer.WriteLine("ping 127.0.0.1 -n 10 -w 1000");
             writer.WriteLine("cd /D " + exePath);
-            writer.WriteLine("shutdown -r -t 1");
-            //writer.WriteLine(Application.productName + ".exe");
+            //writer.WriteLine("shutdown -r -t 1");
+            writer.WriteLine(Application.productName + ".exe");
             writer.Flush();
             file.Close();
             System.Diagnostics.Process.Start("temp.bat");
