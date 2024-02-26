@@ -57,6 +57,8 @@ public class Station : HimeLib.SingletonMono<Station>
         Tello.startConnecting();
 
         StartCoroutine(TelloCommandLoop());
+
+        //Debug.Log(string.Format("Battery {0} % - {1}", (TelloLib.Tello.state != null) ? $"{TelloLib.Tello.state.batteryPercentage}" : " - ", DateTime.Now.ToString()));
     }
 
     public void ArduinoInit(){
@@ -132,7 +134,7 @@ public class Station : HimeLib.SingletonMono<Station>
 	{
         threadPass += () => {
             TXT_TelloStats.text = "" + Tello.state;
-            TXT_Battery.text = string.Format("Battery {0} %", (TelloLib.Tello.state != null) ? ("" + TelloLib.Tello.state.batteryPercentage) : " - ");
+            TXT_Battery.text = string.Format("Battery {0} % - {1}", (TelloLib.Tello.state != null) ? $"{TelloLib.Tello.state.batteryPercentage}" : " - ", DateTime.Now.ToString());
             SystemConfig.Instance.SaveData("lastbattery", TXT_Battery.text);
         };
 	}
